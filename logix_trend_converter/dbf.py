@@ -4,6 +4,7 @@
 #   
 #   This code was bundled with new package to allow for more flexibility
 #   with making modifications and to remove an external dependency.
+#   Original `simpledbf` code version used is 0.2.6 (13-May-2015)
 #
 #   #### BEGIN Original license text ####
 #
@@ -40,16 +41,18 @@
 #
 #   #### END Original license text ####
 
+import pandas as pd     # non-optional import for logix-trend-converter package
+
 import struct
 import datetime
 import os
 #import codecs
 
 # Check for optional dependencies.
-try:
-    import pandas as pd
-except:
-    print("Pandas is not installed. No support for DataFrames, HDF, or SQL.")
+# try:
+#     import pandas as pd
+# except:
+#     print("Pandas is not installed. No support for DataFrames, HDF, or SQL.")
 # else:
 #     try:
 #         import tables as tb
