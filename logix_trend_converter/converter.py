@@ -8,7 +8,9 @@ import pandas as pd
 from .dbf import Dbf5
 
 # dunders
-__all__ = []
+__all__ = [
+    'convert_file_to_pd_dataframe',
+]
 
 # logging setup
 ch = logging.StreamHandler()
@@ -32,9 +34,9 @@ def _parse_date_column(
     """
     RSTrendX provides three columns for a timestamp: ["Date", "Time", "Millitm"].
     Example values:
-        Date:       2023-03-23
-        Time:       18:45:20
-        Millitm:    8 or 28 or 128 (string, not padded)
+        Date:       2023-03-23      (format: YYYY-MM-DD as a string)
+        Time:       18:45:20        (format: HH:MM:SS with 24-hour time as a string)
+        Millitm:    8 or 28 or 128  (format: ### as a string, not padded with zeroes)
     
     Because Pandas stores fractional seconds as nanoseconds, it tries to help by appending zeroes
     to the right side of a string for milliseconds until it gets to six digits. As a result, if
@@ -42,7 +44,21 @@ def _parse_date_column(
     "7 milliseconds") then it will become "700000 ns", erroneously representing 700 milliseconds.
 
     Otherwise this is just a simple string concatenation followed by a strptime() parsing.
+
+    Args:
+        df (`pandas.DataFrame`):
+            The dataframe to extract date/time columns from. Dataframe should follow schema from
+            standard RSTrendX snapshot, which includes the three columns from above (namely: 
+            {'Date', 'Time', 'Millitm'}). If any column is missing, a ValueError is raised.
+
+    Return:
+        `pandas.Series<datetime64[ns]>` - A series of parsed dates, matched to index of `df`.
     """
+    # check for appropriate columns
+    if (len({'Millitm', 'Date', 'Time'}.intersection(df.columns)) < 3):
+        logger.exception("Dataframe is missing one or more timestamp columns.")
+        raise ValueError()
+    
     # convert the milliseconds column type to be zero padded on left
     milliseconds_str: pd.Series = df['Millitm'].apply(lambda x_int: f"{x_int:0>3}").astype(str)
     
@@ -65,6 +81,14 @@ def _parse_header_file(
     Note on encoding:
     After some trial and error, the encoding "cp850" appeared to be one of several options
     which appropriately decodes the IDX file content into human-readable form.
+
+    Args:
+        header_file_name_or_path (`str` or `Path`)
+            The filename (as a string) or Path object referring to the header (.IDX) file.
+
+    Returns:
+        `dict[int, str]` of the header info (RXTrendX pen names), k=(sequential integer); v=(pen name)
+            e.g. {0: 'N100:0', 1: 'F150:1, 2: 'B200.0/0', ...}
     """
     # handle the provided header file name / path
     if (isinstance(header_file_name_or_path, str)):
@@ -121,7 +145,28 @@ def _make_placeholder_header_dict(
     """
     When no IDX file (or a malformed IDX file) is provided, generate friendly column
     names as placeholders for the data within DBF file.
+
+    Args:
+        n_columns (`int`)
+            The number of columns to create placeholder names for.
+        column_prefix (`str`, default="Pen_")
+            The prefix to use when making friendly column names.
+
+    Returns:
+        `dict[int, str]` of placeholder header keys/names. 
+            k=(sequential integer); v=(a string of {column_prefix}_{key})
+            e.g. {0: 'Pen_0', 1: 'Pen_1', ...}
     """
+    if (not isinstance(n_columns, int)):
+        logger.exception(f"Incorrect usage, must provide an integer. Provided: {n_columns=} of type '{str(type(n_columns))}'")
+        raise TypeError
+    elif (n_columns < 1):
+        logger.exception(f"Can't make placeholder column names for 0 (or fewer) columns. {n_columns=}")
+        raise ValueError
+    elif (not isinstance(column_prefix, str)):
+        logger.exception(f"")
+        raise TypeError
+
     return {y_int: f"{column_prefix}{y_int:0>2}" for y_int in range(n_columns)}
 
 
