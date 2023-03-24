@@ -149,6 +149,7 @@ def _make_placeholder_header_dict(
     Args:
         n_columns (`int`)
             The number of columns to create placeholder names for.
+
         column_prefix (`str`, default="Pen_")
             The prefix to use when making friendly column names.
 
@@ -182,7 +183,32 @@ def convert_file_to_pd_dataframe(
         parsed_datetime_column_name: str | None = "datetime" 
         ) -> pd.DataFrame:
     """
-    docstring
+    Converts a DBF/IDX file pair, as exported from RSTrendX's trending / "Create Snapshot" tool, to a pandas dataframe.
+
+    Args:
+        dbf_file_name_or_path (`str` or `Path`)
+            The filename (as a string) or Path object referring to the main data (.DBF) file.
+        
+        header_file_name_or_path (`str` or `Path` or None, *optional*, default=None)
+            The filename (as a string) or Path object referring to the header (.IDX) file.
+
+        keep_status_columns (`bool`, *optional*, default=False)
+            Whether to drop/delete the columns marked as "Sts_..." for each pen. In practice,
+            these columns seem to have garbage values so by default these columns are dropped.
+
+        keep_marker_column (`bool`, *optional*, default=False)
+            Whether to drop/delete the column named "Marker". In practice, this column seems
+            to have garbage values so by default this column is dropped.
+
+        missing_header_file_column_prefix (`str`, *optional*, default="Pen_")
+            If there is no IDX file provided or available, placeholder column names are used.
+            This setting allows the placeholder prefix to be changed from default.
+
+        parsed_datetime_column_name (`str` | None, *optional*, default="datetime")
+            By default the columns containing date/time information are parsed and formatted
+            into a new column called "datetime". To choose a different name, set this value
+            to a string. To disable this function from attempting to parse date/time columns,
+            set this value to None (the Python keyword, not the string "None").
     """
     # handle the provided dbf file name / path
     if (isinstance(dbf_file_name_or_path, str)):
@@ -243,6 +269,9 @@ def convert_file_to_pd_dataframe(
     # add datetime column
     if (parsed_datetime_column_name is not None):
         df[parsed_datetime_column_name] = _parse_date_column(df)
+
+    # drop original date/time columns
+    #   TODO: implement arg to enable/disable this and then implement action itself
 
     # rearrange the column order
     #   TODO: implement column order
