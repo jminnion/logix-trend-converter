@@ -86,7 +86,7 @@ def _parse_header_file(
             raw_data: bytes = idx_file.read()
             decoded_data = raw_data.decode(encoding=_HEADER_FILE_ENCODING)
         
-        logger.debug(f"{decoded_data=}")
+        #logger.debug(f"{decoded_data=}")
 
         if (len(decoded_data) == 0):
             raise ValueError
@@ -130,7 +130,7 @@ def _make_placeholder_header_dict(
 ###
 def convert_file_to_pd_dataframe(
         dbf_file_name_or_path: str | Path, 
-        header_file_name_or_path: str | Path | None,
+        header_file_name_or_path: str | Path | None = None,
         keep_status_columns: bool = False,
         keep_marker_column: bool = False,
         missing_header_file_column_prefix: str = "Pen_",
@@ -163,12 +163,18 @@ def convert_file_to_pd_dataframe(
     # handle the provided header file name / path
     if (header_file_name_or_path is None):
         # check for IDX file with same file stem
-        shy_idx_file = Path(dbf_file_handle.parent, dbf_file_handle.stem, ".IDX")
+        shy_idx_file = Path(dbf_file_handle.parent, f"{dbf_file_handle.stem}.IDX")
         
+        logger.debug(f"Shy IDX file test: {shy_idx_file=}")
+
         if (shy_idx_file.exists()):
             header_dict = _parse_header_file(shy_idx_file)
+
+            logger.debug(f"Shy IDX file found: {header_dict=}")
         else:
             header_dict = None  # placeholders created downstream
+
+            logger.debug(f"No IDX file: {header_dict=}")
     else:
         if (isinstance(header_file_name_or_path, str)):
             header_file_handle: Path = Path(header_file_name_or_path)
@@ -179,9 +185,12 @@ def convert_file_to_pd_dataframe(
         
         header_dict = _parse_header_file(header_file_handle)
 
+        logger.debug(f"Parsed header file: {header_dict=}")
+
     # check for malformed file / empty header_dict
     if (header_dict == {} or header_dict is None):
         header_dict = _make_placeholder_header_dict(n_status_columns, missing_header_file_column_prefix)
+        logger.debug(f"Placeholder column names: {header_dict=}")
 
     # rename pen columns
     df.rename(columns=header_dict, inplace=True)
@@ -195,3 +204,12 @@ def convert_file_to_pd_dataframe(
 
     # all done
     return df
+
+if __name__ == "__main__":
+    # testing code
+    test_dbf = Path('./tests/test_data/PLC5_TEST_TREND.DBF')
+    test_idx = None #Path('./tests/test_data/PLC5_TEST_TREND.IDX')
+
+    df = convert_file_to_pd_dataframe(test_dbf, test_idx)
+
+    print(df)
