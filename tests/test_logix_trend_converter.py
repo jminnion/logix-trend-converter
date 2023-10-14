@@ -37,7 +37,7 @@ _DATA_FILES = {
 ### Tests for `_parse_header_file`
 def test_header_file_bad_path():
     with pytest.raises(TypeError):
-        result = converter._parse_header_file(3.14159265)
+        result = converter._parse_header_file(3.14159265)   # type: ignore
 
 
 def test_header_file_not_exist():

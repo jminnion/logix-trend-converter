@@ -5,7 +5,7 @@ import logging
 
 # external packages
 import pandas as pd
-from .dbf import Dbf5
+import dbf
 
 # dunders
 __all__ = [
@@ -77,7 +77,7 @@ def _parse_date_column(df: pd.DataFrame) -> pd.Series:
     return datetime_col_parsed
 
 
-def _parse_header_file(header_file_name_or_path: str | Path) -> dict[int, str] | None:
+def _parse_header_file(header_file_name_or_path: str | Path) -> dict[str, str] | None:
     """
     RSTrendX provides a sidecar *.IDX file with each DBF snapshot. This file contains the names
     of each trend pen (i.e. the memory registers/tags being trended).
@@ -91,8 +91,8 @@ def _parse_header_file(header_file_name_or_path: str | Path) -> dict[int, str] |
             The filename (as a string) or Path object referring to the header (.IDX) file.
 
     Returns:
-        `dict[int, str]` of the header info (RXTrendX pen names), k=(sequential integer); v=(pen name)
-            e.g. {0: 'N100:0', 1: 'F150:1, 2: 'B200.0/0', ...}
+        `dict[str, str]` of the header info (RXTrendX pen names), k=(sequential integer as string); v=(pen name)
+            e.g. {'0': 'N100:0', '1': 'F150:1, '2': 'B200.0/0', ...}
     """
     # handle the provided header file name / path
     if isinstance(header_file_name_or_path, str):
@@ -118,13 +118,13 @@ def _parse_header_file(header_file_name_or_path: str | Path) -> dict[int, str] |
             raw_data: bytes = idx_file.read()
             decoded_data = raw_data.decode(encoding=_HEADER_FILE_ENCODING)
 
-        # logger.debug(f"{decoded_data=}")
+        logger.debug(f"{__name__}: {decoded_data=}")
 
         if len(decoded_data) == 0:
             raise ValueError
 
         # break apart the decoded text
-        tokens = re.findall(pattern=r"\s\b(\d)(\S*)\s?", string=decoded_data)
+        tokens = re.findall(pattern=r"\s\b(\d+)(\S*)\s?", string=decoded_data)
 
         if len(tokens) == 0:
             raise ValueError
@@ -141,7 +141,7 @@ def _parse_header_file(header_file_name_or_path: str | Path) -> dict[int, str] |
         return None  # parent function catches this and creates appropriate number of placeholders
 
     # re-arrange tokens into dictionary
-    header_dict: dict[int, str] = {int(k): v for (k, v) in tokens}
+    header_dict: dict[str, str] = {k: v for (k, v) in tokens}
 
     logger.debug(f"{tokens=}")
 
@@ -178,7 +178,9 @@ def _make_placeholder_header_dict(
         )
         raise ValueError
     elif not isinstance(column_prefix, str):
-        logger.exception(f"")
+        logger.exception(
+            f"Incorrect usage, must provide a string. Provided {column_prefix=} of type '{str(type(column_prefix))}'"
+        )
         raise TypeError
 
     return {y_int: f"{column_prefix}{y_int:0>2}" for y_int in range(n_columns)}
@@ -194,6 +196,8 @@ def convert_file_to_pd_dataframe(
     keep_marker_column: bool = False,
     missing_header_file_column_prefix: str = "Pen_",
     parsed_datetime_column_name: str | None = "datetime",
+    drop_original_datetime_column: bool = False,
+    put_parsed_datetime_column_first: bool = True,
 ) -> pd.DataFrame:
     """
     Converts a DBF/IDX file pair, as exported from RSTrendX's trending / "Create Snapshot" tool, to a pandas dataframe.
@@ -222,6 +226,18 @@ def convert_file_to_pd_dataframe(
             into a new column called "datetime". To choose a different name, set this value
             to a string. To disable this function from attempting to parse date/time columns,
             set this value to None (the Python keyword, not the string "None").
+
+        drop_original_datetime_column (`bool`, *optional*, default=False)
+            A parsed datetime column is created (named either "datetime" or a custom name
+            if provided with `parsed_datetime_column_name` arg), so optionally the original
+            columns "Date", "Time", and "Millitm" can be dropped by setting this arg to True.
+            Only active if `parsed_datetime_column_name` is not None, otherwise has no effect.
+
+        put_parsed_datetime_column_first (`bool`, *optional*, default=True)
+            A parsed datetime column is created (named either "datetime" or a custom name
+            if provided with `parsed_datetime_column_name` arg), so optionally re-order the
+            columns so that the parsed datetime column is first.
+            Only active if `parsed_datetime_column_name` is not None, otherwise has no effect.
     """
     # handle the provided dbf file name / path
     if isinstance(dbf_file_name_or_path, str):
@@ -234,7 +250,7 @@ def convert_file_to_pd_dataframe(
         )
 
     # run the conversion utility
-    df = Dbf5(dbf_file_handle).to_dataframe()
+    df = dbf.Dbf5(dbf_file_handle).to_dataframe()
 
     # drop status columns
     status_cols = [col for col in df.columns if (col[0:4] == "Sts_")]
@@ -289,11 +305,22 @@ def convert_file_to_pd_dataframe(
     if parsed_datetime_column_name is not None:
         df[parsed_datetime_column_name] = _parse_date_column(df)
 
-    # drop original date/time columns
-    #   TODO: implement arg to enable/disable this and then implement action itself
+        # drop original date/time columns (optional)
+        if drop_original_datetime_column:
+            df.drop(columns=['Date', 'Time', 'Millitm'], inplace=True)
 
-    # rearrange the column order
-    #   TODO: implement column order
+        # rearrange the column order (optional)
+        if put_parsed_datetime_column_first:
+            datetime_col = df.pop(parsed_datetime_column_name)
+            df.insert(loc=0, column=datetime_col.name, value=datetime_col)
+    else:
+        # If we don't make a parsed datetime column, we *shouldn't* drop the original datetime columns.
+        #   we also can't move the parsed datetime column if we hadn't created it. Either way give a warning. 
+        if (drop_original_datetime_column or put_parsed_datetime_column_first):
+            logger.warning(
+                """Args `drop_original_datetime_column` and/or `put_parsed_datetime_column_first` had no effect
+                because `parsed_datetime_column_name` was None, indicating no parsed datetime column should be generated."""
+            )
 
     # all done
     return df
@@ -301,9 +328,11 @@ def convert_file_to_pd_dataframe(
 
 if __name__ == "__main__":
     # testing code
-    test_dbf = Path("./tests/test_data/PLC5_TEST_TREND.DBF")
-    test_idx = None  # Path('./tests/test_data/PLC5_TEST_TREND.IDX')
+    test_dbf = Path("../tests/test_data/PLC5_TEST_TREND.DBF")
+    test_idx = Path('../tests/test_data/PLC5_TEST_TREND.IDX')
 
     df = convert_file_to_pd_dataframe(test_dbf, test_idx)
 
     print(df)
+
+    print(type(df.columns[0]))

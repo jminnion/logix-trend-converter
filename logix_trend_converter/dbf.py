@@ -85,31 +85,48 @@ class DbfBase(object):
     Do not instantiate this class. This provides some of the common functions
     for other subclasses.
     '''
-    # def _chunker(self, chunksize):
-    #     '''Return a list of chunk ints from given chunksize.
 
-    #     Parameters
-    #     ----------
-    #     chunksize : int
-    #         The maximum chunk size 
+    ### <not in original package>
+    ### This function not in original `simpledbf` package, added to resolve some IDE errors/warnings.
+    ### The guidance of the original `simpledbf` package still applies: do not instantiate this class.
+    def __init__(self):
+        # these are overridden by child class Dbf5
+        self.numrec = 0
+        self.fmtsiz = 0
+        self.columns = []
+        raise NotImplementedError
 
-    #     Returns
-    #     -------
-    #     list of ints
-    #         A list of chunks necessary to break up a given file. These will
-    #         all be equal to `chunksize`, except for the last value, which is
-    #         the remainder (<= `chunksize).
-    #     '''
-    #     num = self.numrec//chunksize
-    #     # Chunksize bigger than numrec
-    #     if num == 0:
-    #         return [self.numrec,]
-    #     else:
-    #         chunks = [chunksize,]*num
-    #         remain = self.numrec%chunksize
-    #         if remain != 0:
-    #             chunks.append(remain) 
-    #         return chunks
+    def _get_recs(*args, **kwargs):
+        # this function is overridden by child class Dbf5
+        raise NotImplementedError
+        return []
+    ### </not in original package>
+
+    def _chunker(self, chunksize):
+        '''Return a list of chunk ints from given chunksize.
+
+        Parameters
+        ----------
+        chunksize : int
+            The maximum chunk size 
+
+        Returns
+        -------
+        list of ints
+            A list of chunks necessary to break up a given file. These will
+            all be equal to `chunksize`, except for the last value, which is
+            the remainder (<= `chunksize).
+        '''
+        num = self.numrec//chunksize
+        # Chunksize bigger than numrec
+        if num == 0:
+            return [self.numrec,]
+        else:
+            chunks = [chunksize,]*num
+            remain = self.numrec%chunksize
+            if remain != 0:
+                chunks.append(remain) 
+            return chunks
 
     def _na_set(self, na):
         '''Set the value used for missing/bad data.
@@ -364,7 +381,8 @@ class DbfBase(object):
             return df
         else:
             # Return a generator function instead
-            return self._df_chunks(chunksize)
+            #return self._df_chunks(chunksize)
+            raise NotImplementedError   # this function isn't used for logix-trend-converter package
 
     # def _df_chunks(self, chunksize):
     #     '''A DataFrame chunk generator.
