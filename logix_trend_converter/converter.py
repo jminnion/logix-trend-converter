@@ -5,7 +5,7 @@ import logging
 
 # external packages
 import pandas as pd
-import dbf
+from .dbf import Dbf5
 
 # dunders
 __all__ = [
@@ -17,8 +17,8 @@ ch = logging.StreamHandler()
 ch.setFormatter(logging.Formatter("[%(levelname)s] %(funcName)s: %(message)s"))
 logger = logging.getLogger(__name__)
 logger.addHandler(ch)
-# logger.setLevel(logging.WARNING)   # for typical use
-logger.setLevel(logging.DEBUG)  # for use during development/testing
+logger.setLevel(logging.WARNING)    # for typical use
+# logger.setLevel(logging.DEBUG)    # for use during development/testing
 
 
 ###
@@ -250,7 +250,7 @@ def convert_file_to_pd_dataframe(
         )
 
     # run the conversion utility
-    df = dbf.Dbf5(dbf_file_handle).to_dataframe()
+    df = Dbf5(dbf_file_handle).to_dataframe()
 
     # drop status columns
     status_cols = [col for col in df.columns if (col[0:4] == "Sts_")]
@@ -327,12 +327,4 @@ def convert_file_to_pd_dataframe(
 
 
 if __name__ == "__main__":
-    # testing code
-    test_dbf = Path("../tests/test_data/PLC5_TEST_TREND.DBF")
-    test_idx = Path('../tests/test_data/PLC5_TEST_TREND.IDX')
-
-    df = convert_file_to_pd_dataframe(test_dbf, test_idx)
-
-    print(df)
-
-    print(type(df.columns[0]))
+    print("logix-trend-converter: CLI interface not yet implemented")

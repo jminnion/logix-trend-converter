@@ -21,12 +21,13 @@ pip install logix-trend-converter
 
 ```python
 from logix_trend_converter import converter as ltc
+from pathlib import Path
 
-dbf_file = "my_data.dbf"
-idx_file = "my_data.idx"
+dbf_file = Path("data/my_data.dbf")
+idx_file = Path("data/my_data.idx")
 
-
-
+df = ltc.convert_file_to_pd_dataframe(dbf_file, idx_file)
+df.head()
 
 ```
 
