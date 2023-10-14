@@ -2,7 +2,7 @@
 name = "logix-trend-converter"
 version = "0.1.0"
 description = "A tool for converting RSLogix 5/500/5000 data trend files (with *.DBF file format) to more friendly formats."
-authors = ["Justin Minnion <jminnion@gmail.com>"]
+authors = ["Justin Minnion <justin@minnion.io>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/jminnion/logix-trend-converter"
